@@ -1,0 +1,24 @@
+{
+  "name": "figma-local-bridge",
+  "version": "0.3.0",
+  "description": "Background local Codex companion for the independent FIGMA-DESIGN-AI Figma plugin.",
+  "author": {
+    "name": "Maishalo"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "FIGMA-DESIGN-AI Connector",
+    "shortDescription": "Local Codex companion for FIGMA-DESIGN-AI.",
+    "longDescription": "A shared local connector that lets the independent FIGMA-DESIGN-AI Figma plugin discover Codex automatically, work across multiple chats, exchange selection trees and previews, and apply user-approved DesignIR edits.",
+    "developerName": "Maishalo",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Check the FIGMA-DESIGN-AI connection.",
+      "Inspect the selected frame in Figma.",
+      "Create a new screen beside the current selection."
+    ],
+    "brandColor": "#8B5CF6"
+  },
+  "mcpServers": "./.mcp.json"
+}

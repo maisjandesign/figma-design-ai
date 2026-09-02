@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-synthesis: none;
+      --accent: #7c3aed;
+      --accent-hover: #6d28d9;
+      --accent-soft: rgba(124, 58, 237, .10);
+      --success: #16845b;
+      --success-soft: rgba(22, 132, 91, .11);
+      --warning: #a16207;
+      --warning-soft: rgba(161, 98, 7, .11);
+      --danger: #c2413a;
+      --danger-soft: rgba(194, 65, 58, .10);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 8px 24px rgba(0, 0, 0, .04);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      padding: 16px;
+      overflow-x: hidden;
+      color: var(--figma-color-text, #1f1f1f);
+      background: var(--figma-color-bg, #ffffff);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    button, input, summary { font: inherit; }
+    button { min-height: 36px; }
+    button:focus-visible, input:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--figma-color-border-brand-strong, var(--accent));
+      outline-offset: 2px;
+    }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .mark {
+      position: relative;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 auto;
+      border-radius: 9px;
+      background: linear-gradient(145deg, #8b5cf6, #6d28d9);
+      box-shadow: 0 5px 14px rgba(109, 40, 217, .24);
+    }
+    .mark::before, .mark::after {
+      content: "";
+      position: absolute;
+      border: 1.5px solid rgba(255, 255, 255, .92);
+      border-radius: 4px;
+    }
+    .mark::before { inset: 7px 10px 10px 7px; }
+    .mark::after { inset: 11px 6px 6px 11px; background: rgba(255, 255, 255, .16); }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: 14px; line-height: 18px; font-weight: 650; letter-spacing: -.01em; }
+    h2 { font-size: 12px; line-height: 18px; font-weight: 600; }
+    .subtitle { margin-top: 1px; color: var(--figma-color-text-secondary, #6b6b6b); font-size: 11px; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: var(--figma-color-text-secondary, #6b6b6b);
+      background: var(--figma-color-bg-secondary, #f3f3f3);
+      white-space: nowrap;
+      font-weight: 550;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--figma-color-icon-disabled, #a8a8a8); box-shadow: 0 0 0 3px transparent; }
+    .status-pill.connected { color: var(--success); background: var(--success-soft); }
+    .status-pill.connected .status-dot { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+    .status-pill.connecting { color: var(--warning); background: var(--warning-soft); }
+    .status-pill.connecting .status-dot { background: var(--warning); }
+    .status-pill.error { color: var(--danger); background: var(--danger-soft); }
+    .status-pill.error .status-dot { background: var(--danger); }
+    .stack { display: grid; gap: 10px; }
+    .card {
+      padding: 13px;
+      border: 1px solid var(--figma-color-border, rgba(0, 0, 0, .12));
+      border-radius: 12px;
+      background: var(--figma-color-bg-secondary, #f7f7f7);
+      box-shadow: var(--shadow);
+    }
+    .connection-card { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; align-items: start; }
+    .connection-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; color: var(--accent); background: var(--accent-soft); }
+    .connection-icon svg { width: 16px; height: 16px; }
+    .connection-copy p { margin-top: 3px; color: var(--figma-color-text-secondary, #6b6b6b); }
+    .button-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 12px; }
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 12px;
+      border: 1px solid var(--figma-color-border, rgba(0, 0, 0, .14));
+      border-radius: 8px;
+      color: var(--figma-color-text, #1f1f1f);
+      background: var(--figma-color-bg, #ffffff);
+      cursor: pointer;
+      transition-property: background-color, border-color, color, transform;
+      transition-duration: 120ms;
+      transition-timing-function: cubic-bezier(.2, 0, 0, 1);
+    }
+    button:hover:not(:disabled) { background: var(--figma-color-bg-hover, #ededed); }
+    button:active:not(:disabled) { transform: scale(.96); }
+    button:disabled { cursor: default; opacity: .45; }
+    button.primary { border-color: var(--figma-color-bg-brand, var(--accent)); color: var(--figma-color-text-onbrand, #ffffff); background: var(--figma-color-bg-brand, var(--accent)); }
+    button.primary:hover:not(:disabled) { background: var(--figma-color-bg-brand-hover, var(--accent-hover)); }
+    button.danger { color: var(--danger); }
+    button svg { width: 14px; height: 14px; flex: 0 0 auto; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .eyebrow { color: var(--figma-color-text-secondary, #6b6b6b); font-size: 10px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+    .count-badge { min-width: 22px; padding: 2px 7px; border-radius: 999px; color: var(--figma-color-text-secondary, #6b6b6b); background: var(--figma-color-bg, #ffffff); text-align: center; font-variant-numeric: tabular-nums; }
+    .selection-main { margin-top: 10px; font-weight: 550; overflow-wrap: anywhere; }
+    .selection-meta { margin-top: 4px; color: var(--figma-color-text-secondary, #6b6b6b); }
+    .approval { display: none; border-color: var(--figma-color-border-brand-strong, var(--accent)); background: var(--figma-color-bg, #ffffff); }
+    .approval.visible { display: block; }
+    .approval-title { display: flex; align-items: center; gap: 8px; }
+    .approval-title svg { width: 16px; height: 16px; color: var(--accent); }
+    .approval p { margin-top: 6px; color: var(--figma-color-text-secondary, #6b6b6b); }
+    .approval-actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; margin-top: 12px; }
+    details { color: var(--figma-color-text-secondary, #6b6b6b); }
+    details.payload { margin-top: 10px; }
+    summary { min-height: 28px; cursor: pointer; user-select: none; }
+    pre { max-height: 118px; margin: 6px 0 0; padding: 9px; overflow: auto; border-radius: 7px; color: var(--figma-color-text-secondary, #6b6b6b); background: var(--figma-color-bg-secondary, #f3f3f3); font: 10px/15px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .activity { padding: 0 2px; }
+    .activity summary { display: flex; align-items: center; justify-content: space-between; list-style: none; }
+    .activity summary::-webkit-details-marker { display: none; }
+    .activity summary::after { content: "+"; font-size: 16px; font-weight: 400; }
+    .activity[open] summary::after { content: "−"; }
+    .log { max-height: 90px; overflow: auto; padding: 8px 0 2px; border-top: 1px solid var(--figma-color-border, rgba(0, 0, 0, .12)); color: var(--figma-color-text-secondary, #6b6b6b); font: 10px/15px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+    .footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 2px; }
+    .toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; }
+    .toggle input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+    .local-note { color: var(--figma-color-text-tertiary, #8a8a8a); font-size: 10px; white-space: nowrap; }
+    @media (prefers-reduced-motion: reduce) {
+      button { transition-property: background-color, border-color, color; }
+      button:active:not(:disabled) { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"></div>
+      <div><h1>FIGMA DESIGN AI</h1><p class="subtitle">Local bridge for Codex</p></div>
+    </div>
+    <div id="status" class="status-pill connecting" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span id="statusText">Connecting</span></div>
+  </header>
+
+  <main class="stack">
+    <section id="connectionCard" class="card connection-card" aria-labelledby="connectionTitle">
+      <div class="connection-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5 14.5 9.5"/><path d="m7.4 17.6-1 1a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0"/><path d="m16.6 6.4 1-1a3.5 3.5 0 1 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"/></svg>
+      </div>
+      <div class="connection-copy">
+        <h2 id="connectionTitle">Finding Codex</h2>
+        <p id="connectionDescription">The plugin connects automatically on this Mac.</p>
+        <div class="button-row">
+          <button id="sendButton" class="primary" type="button" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            Sync selection
+          </button>
+          <button id="connectButton" type="button">Retry</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="approval" class="card approval" aria-labelledby="approvalHeading">
+      <div class="approval-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.4 8.4 8 9 4.6-.6 8-4 8-9V7l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg>
+        <h2 id="approvalHeading">Review changes from Codex</h2>
+      </div>
+      <p id="approvalSummary">Codex wants to update this document.</p>
+      <details class="payload"><summary>View technical details</summary><pre id="approvalPayload"></pre></details>
+      <div class="approval-actions"><button id="rejectButton" class="danger" type="button">Reject</button><button id="approveButton" class="primary" type="button">Apply changes</button></div>
+    </section>
+
+    <section class="card" aria-labelledby="selectionHeading">
+      <div class="section-heading"><div id="selectionHeading" class="eyebrow">Current selection</div><div id="selectionCount" class="count-badge" aria-label="Selected layers">0</div></div>
+      <div id="selection" class="selection-main">Nothing selected</div>
+      <div id="selectionMeta" class="selection-meta">Select a frame or layer to share its structure with Codex.</div>
+    </section>
+
+    <details class="activity"><summary>Activity</summary><div id="log" class="log" role="log" aria-live="polite">Plugin opened.</div></details>
+    <div class="footer"><label class="toggle"><input id="autoSync" type="checkbox" checked><span>Sync selection automatically</span></label><span class="local-note">Local only</span></div>
+  </main>
+
+  <script>
+    const endpoint = "ws://localhost:38451/figma";
+    const status = document.getElementById("status");
+    const statusText = document.getElementById("statusText");
+    const connectionTitle = document.getElementById("connectionTitle");
+    const connectionDescription = document.getElementById("connectionDescription");
+    const connectButton = document.getElementById("connectButton");
+    const sendButton = document.getElementById("sendButton");
+    const selectionElement = document.getElementById("selection");
+    const selectionMeta = document.getElementById("selectionMeta");
+    const selectionCount = document.getElementById("selectionCount");
+    const autoSync = document.getElementById("autoSync");
+    const logElement = document.getElementById("log");
+    const approval = document.getElementById("approval");
+    const approvalSummary = document.getElementById("approvalSummary");
+    const approvalPayload = document.getElementById("approvalPayload");
+    const approveButton = document.getElementById("approveButton");
+    const rejectButton = document.getElementById("rejectButton");
+
+    let socket = null;
+    let paired = false;
+    let figmaVersion = "1.1.0";
+    let latestSelection = null;
+    let pendingWrite = null;
+    let reconnectTimer = null;
+    let reconnectAttempt = 0;
+    let heartbeatTimer = null;
+    let lastPongAt = 0;
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      logElement.textContent = `${time}  ${message}\n${logElement.textContent}`.slice(0, 3000);
+    }
+
+    function setConnectionState(mode, label, title, description) {
+      status.className = `status-pill ${mode || ""}`;
+      statusText.textContent = label;
+      connectionTitle.textContent = title;
+      connectionDescription.textContent = description;
+      sendButton.disabled = !paired || !latestSelection || latestSelection.selectionCount === 0;
+    }
+
+    function send(message) {
+      if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+      socket.send(JSON.stringify(message));
+      return true;
+    }
+
+    function clearHeartbeat() {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+
+    function startHeartbeat() {
+      clearHeartbeat();
+      lastPongAt = Date.now();
+      heartbeatTimer = setInterval(() => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        if (Date.now() - lastPongAt > 22000) {
+          log("The local bridge stopped responding. Reconnecting.");
+          socket.close();
+          return;
+        }
+        send({ type: "ping", timestamp: Date.now() });
+      }, 8000);
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      const baseDelay = Math.min(12000, 1000 * Math.pow(1.7, reconnectAttempt));
+      const delay = Math.round(baseDelay + Math.random() * 350);
+      reconnectAttempt += 1;
+      reconnectTimer = setTimeout(() => connect(false), delay);
+    }
+
+    function connect(manual) {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (manual) reconnectAttempt = 0;
+      if (socket) {
+        socket.onclose = null;
+        socket.close();
+      }
+      clearHeartbeat();
+      paired = false;
+      setConnectionState("connecting", "Connecting", "Finding Codex", "The plugin connects automatically on this Mac.");
+      socket = new WebSocket(endpoint);
+
+      socket.onopen = () => {
+        send({ type: "hello", clientKey: "figma-design-ai-local-v1", clientName: "FIGMA-DESIGN-AI", figmaVersion, protocolVersion: "0.2" });
+      };
+
+      socket.onmessage = (event) => {
+        let message;
+        try { message = JSON.parse(event.data); }
+        catch { log("The local bridge returned an unreadable message."); return; }
+        if (message.type === "hello-ack") {
+          paired = true;
+          reconnectAttempt = 0;
+          setConnectionState("connected", "Connected", "Codex is ready", "Selection updates stay on this Mac and sync automatically.");
+          log("Connected to Codex.");
+          startHeartbeat();
+          if (latestSelection) publishSelection(latestSelection);
+          return;
+        }
+        if (message.type === "pong") {
+          lastPongAt = Date.now();
+          return;
+        }
+        if (message.type === "pair-required") {
+          paired = false;
+          setConnectionState("error", "Update needed", "Update the Codex connector", "This Figma plugin and the local connector use different protocol versions.");
+          log("Connection rejected. Update the FIGMA-DESIGN-AI Connector in Codex.");
+          return;
+        }
+        if (message.type === "command") receiveCommand(message);
+      };
+
+      socket.onerror = () => { paired = false; };
+      socket.onclose = (event) => {
+        clearHeartbeat();
+        paired = false;
+        socket = null;
+        if (event.code === 4001) {
+          setConnectionState("", "Other file", "Connected in another Figma file", "Select Retry to switch the Codex connection to this file.");
+          log("Another Figma file took over the local connection.");
+          return;
+        }
+        setConnectionState("error", "Offline", "Codex is not available yet", "Open a Codex chat with FIGMA-DESIGN-AI enabled, then select Retry.");
+        if (manual) log("Codex was not found. Start a Codex chat and try again.");
+        scheduleReconnect();
+      };
+    }
+
+    function updateSelection(snapshot) {
+      latestSelection = snapshot;
+      const count = snapshot?.selectionCount || 0;
+      selectionCount.textContent = String(count);
+      selectionCount.setAttribute("aria-label", `${count} selected ${count === 1 ? "layer" : "layers"}`);
+      if (count === 0) {
+        selectionElement.textContent = "Nothing selected";
+        selectionMeta.textContent = "Select a frame or layer to share its structure with Codex.";
+      } else {
+        const names = snapshot.nodes.slice(0, 3).map((node) => node.name || node.type).join(", ");
+        const remainder = count > 3 ? ` +${count - 3} more` : "";
+        selectionElement.textContent = `${names}${remainder}`;
+        selectionMeta.textContent = count === 1 ? `${snapshot.nodes[0]?.type || "Layer"} ready to sync.` : `${count} layers ready to sync.`;
+      }
+      sendButton.disabled = !paired || count === 0;
+    }
+
+    function publishSelection(snapshot) {
+      if (!paired || !snapshot) return;
+      send({ type: "event", event: "selection-changed", payload: snapshot });
+      log(`Synced ${snapshot.selectionCount} selected ${snapshot.selectionCount === 1 ? "layer" : "layers"}.`);
+    }
+
+    function commandSummary(message) {
+      if (message.command === "create-design") {
+        const design = message.params && message.params.design;
+        return design?.name ? `Create “${design.name}” in this document.` : "Create a new design in this document.";
+      }
+      if (message.command === "patch-selection") {
+        const count = Array.isArray(message.params?.operations) ? message.params.operations.length : 0;
+        return `Apply ${count} ${count === 1 ? "change" : "changes"} to the current selection.`;
+      }
+      return `Run ${message.command}.`;
+    }
+
+    function receiveCommand(message) {
+      const requiresApproval = message.command === "create-design" || message.command === "patch-selection";
+      if (!requiresApproval) {
+        parent.postMessage({ pluginMessage: { ...message, type: "bridge-command" } }, "*");
+        return;
+      }
+      if (pendingWrite) {
+        send({ type: "response", requestId: message.requestId, ok: false, error: "Another Figma change is waiting for approval." });
+        return;
+      }
+      pendingWrite = message;
+      approvalSummary.textContent = commandSummary(message);
+      approvalPayload.textContent = JSON.stringify(message.params, null, 2).slice(0, 5000);
+      approval.classList.add("visible");
+      approveButton.focus();
+      log("A document change is waiting for approval.");
+    }
+
+    function finishApproval(approved) {
+      if (!pendingWrite) return;
+      const message = pendingWrite;
+      pendingWrite = null;
+      approval.classList.remove("visible");
+      if (approved) {
+        parent.postMessage({ pluginMessage: { ...message, type: "bridge-command" } }, "*");
+        log("Change approved. Applying it in Figma.");
+      } else {
+        send({ type: "response", requestId: message.requestId, ok: false, error: "The change was rejected in Figma." });
+        log("Change rejected.");
+      }
+      sendButton.focus();
+    }
+
+    window.onmessage = (event) => {
+      const message = event.data.pluginMessage;
+      if (!message) return;
+      if (message.type === "plugin-ready") {
+        figmaVersion = message.figmaVersion || figmaVersion;
+        connect(false);
+        return;
+      }
+      if (message.type === "selection-snapshot") {
+        updateSelection(message.payload);
+        if (autoSync.checked) publishSelection(message.payload);
+        return;
+      }
+      if (message.type === "bridge-response") {
+        send({ type: "response", requestId: message.requestId, ok: message.ok, result: message.result, error: message.error });
+        log(message.ok ? "Command completed." : `Unable to complete command: ${message.error}`);
+      }
+    };
+
+    connectButton.onclick = () => connect(true);
+    sendButton.onclick = () => latestSelection && publishSelection(latestSelection);
+    approveButton.onclick = () => finishApproval(true);
+    rejectButton.onclick = () => finishApproval(false);
+  </script>
+</body>
+</html>
