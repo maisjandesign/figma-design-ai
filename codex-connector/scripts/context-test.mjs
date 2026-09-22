@@ -21,8 +21,12 @@ text.characters='Mixed text';
 text.getStyledTextSegments=()=>[{start:0,end:5,characters:'Mixed',fontSize:32},{start:5,end:10,characters:' text',fontSize:16}];
 const icon=make('icon','VECTOR',root);
 const outside=make('outside','RECTANGLE',page);
-const figma={mixed:Symbol('mixed'),showUI(){},currentPage:{id:'page',name:'Page',selection:[root]},
-  ui:{postMessage(){}},on:(name,cb)=>{handlers[name]=cb;},getNodeByIdAsync:async id=>registry.get(id),
+const pageHandlers = new Map();
+const testPage = (id,selection) => ({id,name:id,selection,
+  on:(name,cb)=>{assert.equal(name,'nodechange');pageHandlers.set(id,cb);},
+  off:(name,cb)=>{assert.equal(name,'nodechange');assert.equal(pageHandlers.get(id),cb);pageHandlers.delete(id);}});
+const figma={mixed:Symbol('mixed'),showUI(){},currentPage:testPage('page',[root]),
+  ui:{postMessage(){}},on:(name,cb)=>{if(name==='documentchange') throw new Error('Cannot register documentchange in incremental mode');handlers[name]=cb;},getNodeByIdAsync:async id=>registry.get(id),
   getImageByHash:()=>({getBytesAsync:async()=>new Uint8Array([137,80,78,71])})};
 const context=vm.createContext({figma,__html__:'',setTimeout:()=>1,clearTimeout(){},Uint8Array,console});
 vm.runInContext(await fs.readFile(new URL('../figma-plugin/code.js',import.meta.url),'utf8'),context);
@@ -48,7 +52,7 @@ assert(assets.some(a=>a.imageHash==='photo-hash'));
 assert(assets.some(a=>a.kind==='vector'&&a.nodeId==='icon'));
 assert.equal(last.complete,true);
 const first=await result('getDesignContext({pageSize:1})');
-handlers.documentchange();context.opts={cursor:first.nextCursor};
+pageHandlers.get('page')();context.opts={cursor:first.nextCursor};
 await assert.rejects(result('getDesignContext(opts)'),/changed/);
 const next=await result('getDesignContext({pageSize:1})');
 figma.currentPage.selection=[photo];context.opts={cursor:next.nextCursor};
@@ -61,4 +65,14 @@ assert.equal(image.source,'original-image');assert.equal(image.format,'PNG');
 const svg=await result('exportAsset({nodeId:"icon",format:"SVG"})');
 assert.equal(Buffer.from(svg.base64,'base64').toString(),'<svg/>');
 assert.equal(figma.currentPage.selection[0],root,'Export must preserve selection');
+const beforeSwitch=await result('getDesignContext({pageSize:1})');
+figma.currentPage=testPage('page2',[root]);handlers.currentpagechange();
+assert.equal(pageHandlers.has('page'),false,'Detach previous page observer');
+assert.equal(pageHandlers.has('page2'),true,'Watch the new page');
+context.opts={cursor:beforeSwitch.nextCursor};
+await assert.rejects(result('getDesignContext(opts)'),/changed/);
+const beforeStyle=await result('getDesignContext({pageSize:1})');
+handlers.stylechange();context.opts={cursor:beforeStyle.nextCursor};
+await assert.rejects(result('getDesignContext(opts)'),/changed/);
+assert.equal(handlers.documentchange,undefined,'No global documentchange subscription');
 console.log('Context tests passed: 1,604 nodes / 1,600 levels, pagination, mixed text, assets, invalidation and selection scope.');

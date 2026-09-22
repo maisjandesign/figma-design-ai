@@ -116,4 +116,6 @@ The test starts two MCP processes, verifies that they share one local bridge, co
 
 ## Status
 
+0.4.1 fixes startup in Figma dynamic-page mode: context invalidation now uses the active page's `nodechange` event and `stylechange`, reattaching when the active page changes. No full-document load is required. The bridge protocol/server remains compatible with 0.4.0.
+
 Personal development plugin. macOS and Figma desktop are the primary supported environment.

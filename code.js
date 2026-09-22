@@ -558,7 +558,19 @@ function scheduleSelectionUpdate() {
 }
 
 figma.on("selectionchange", scheduleSelectionUpdate);
-figma.on("documentchange", () => { documentRevision += 1; });
+// dynamic-page permits page-local nodechange without loading every page.
+let observedPage = null;
+function invalidateContext() { documentRevision += 1; }
+function observeCurrentPage() {
+  if (observedPage === figma.currentPage) return;
+  if (observedPage) observedPage.off("nodechange", invalidateContext);
+  observedPage = figma.currentPage;
+  observedPage.on("nodechange", invalidateContext);
+  invalidateContext();
+}
+observeCurrentPage();
+figma.on("currentpagechange", observeCurrentPage);
+figma.on("stylechange", invalidateContext);
 
 figma.ui.onmessage = async (message) => {
   if (!message || typeof message.type !== "string") return;
