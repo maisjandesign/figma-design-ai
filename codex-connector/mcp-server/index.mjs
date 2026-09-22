@@ -2,12 +2,14 @@
 
 import crypto from "node:crypto";
 import http from "node:http";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 const HOST = "127.0.0.1";
 const PORT = Number.parseInt(process.env.FIGMA_LOCAL_BRIDGE_PORT || "38451", 10);
 const MAX_WS_PAYLOAD = 16 * 1024 * 1024;
 const MAX_LOCAL_RPC_PAYLOAD = 4 * 1024 * 1024;
-const SERVER_VERSION = "0.3.0";
+const SERVER_VERSION = "0.4.0";
 const FIGMA_DESIGN_AI_CLIENT_KEY = "figma-design-ai-local-v1";
 const LOCAL_RPC_KEY = "figma-design-ai-shared-bridge-v1";
 
@@ -68,7 +70,7 @@ async function probeExistingBridge() {
     const response = await fetch(`http://${HOST}:${PORT}/`, { signal: controller.signal });
     if (!response.ok) return false;
     const info = await response.json();
-    return info?.name === "figma-local-bridge" && info?.sharedRpc === true;
+    return info?.name === "figma-local-bridge" && info?.sharedRpc === true && info?.version === SERVER_VERSION;
   } catch {
     return false;
   } finally {
@@ -406,6 +408,25 @@ function requestFigma(command, params = {}) {
 
 const tools = [
   {
+    name: "figma_get_design_context",
+    description: "Required before implementing a selected Figma frame. Read ALL nested layers in pages, without a depth limit, including layout, geometry, mixed text runs and image/vector asset references. Repeat with nextCursor until complete=true. Do not implement from a screenshot alone.",
+    inputSchema: {type:"object",properties:{
+      cursor:{type:"string",description:"nextCursor from the preceding page. Restart without a cursor if the document changes."},
+      nodeId:{type:"string",description:"Optional selected node or descendant to start a focused read."},
+      pageSize:{type:"integer",minimum:1,maximum:150,default:75}
+    },additionalProperties:false}
+  },
+  {
+    name: "figma_export_asset",
+    description: "Export a specific selected layer or descendant to a local file, without changing selection. Use SVG for icons, PNG for rendered/cropped imagery, or imageHash from design context for original image bytes. Never rasterize an entire UI as an implementation substitute.",
+    inputSchema:{type:"object",required:["nodeId","outputDirectory"],properties:{
+      nodeId:{type:"string"},outputDirectory:{type:"string",description:"Absolute directory in the user's target project for exported assets."},
+      format:{type:"string",enum:["PNG","SVG"],default:"PNG"},
+      imageHash:{type:"string",description:"Optional hash used by this layer: export original image rather than the rendered layer."},
+      maxWidth:{type:"integer",minimum:32,maximum:4096,default:2000}
+    },additionalProperties:false}
+  },
+  {
     name: "figma_connection_status",
     description: "Check whether FIGMA-DESIGN-AI is connected to the local Codex companion.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false }
@@ -516,6 +537,24 @@ function errorResult(error) {
 async function callToolLocal(name, args = {}) {
   try {
     switch (name) {
+      case "figma_get_design_context":
+        return textResult(await requestFigma("get-design-context", args));
+      case "figma_export_asset": {
+        if (typeof args.outputDirectory !== "string" || !path.isAbsolute(args.outputDirectory)) throw new Error("outputDirectory must be an absolute project directory.");
+        const asset = await requestFigma("export-asset", {nodeId:args.nodeId,format:args.format,imageHash:args.imageHash,maxWidth:args.maxWidth});
+        const extensions = {PNG:"png",SVG:"svg",JPG:"jpg",GIF:"gif",BIN:"bin"};
+        const extension = extensions[asset.format];
+        if (!extension || typeof asset.base64 !== "string") throw new Error("Invalid asset response from Figma.");
+        const data = Buffer.from(asset.base64,"base64");
+        if (data.length > 8 * 1024 * 1024) throw new Error("Asset exceeds the 8 MB limit.");
+        const slug = String(asset.name || "asset").replace(/[^a-zA-Z0-9_-]/g,"-").slice(0,64) || "asset";
+        await fs.mkdir(args.outputDirectory,{recursive:true});
+        const filename = `${slug}-${crypto.randomUUID()}.${extension}`;
+        const filePath = path.join(args.outputDirectory,filename);
+        await fs.writeFile(filePath,data,{flag:"wx"});
+        const {base64, ...metadata} = asset;
+        return textResult({...metadata,byteLength:data.length,path:filePath});
+      }
       case "figma_connection_status":
         return textResult({
           connected: Boolean(activeFigmaClient?.paired),

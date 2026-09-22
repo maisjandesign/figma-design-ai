@@ -3,6 +3,9 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import net from "node:net";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 
 const serverUrl = new URL("../mcp-server/index.mjs", import.meta.url);
 const testPort = await new Promise((resolve, reject) => {
@@ -92,7 +95,7 @@ try {
   assert.equal(initialized.serverInfo.name, "figma-local-bridge");
 
   const list = await call("tools/list");
-  assert.equal(list.tools.length, 7);
+  assert.equal(list.tools.length, 9);
   assert.ok(list.tools.some((tool) => tool.name === "figma_get_selection"));
   assert.ok(list.tools.some((tool) => tool.name === "figma_create_design"));
 
@@ -182,6 +185,24 @@ try {
   const selection = await selectionCall;
   assert.equal(selection.structuredContent.nodes[0].name, "Smoke Frame");
 
+  const contextCall = callProxy("tools/call", {name:"figma_get_design_context",arguments:{pageSize:50}});
+  const contextCommand = await nextWs(m=>m.command === "get-design-context", "context command");
+  assert.equal(contextCommand.params.pageSize,50);
+  socket.send(JSON.stringify({type:"response",requestId:contextCommand.requestId,ok:true,
+    result:{nodes:[{id:"1:3",parentId:"1:2",type:"VECTOR"}],complete:true,nextCursor:null,readNodeCount:1}}));
+  assert.equal((await contextCall).structuredContent.complete,true);
+  const outputDirectory = await fs.mkdtemp(path.join(os.tmpdir(),"figma-assets-test-"));
+  const assetCall = callProxy("tools/call", {name:"figma_export_asset",arguments:{nodeId:"1:3",format:"SVG",outputDirectory}});
+  const assetCommand = await nextWs(m=>m.command === "export-asset", "asset command");
+  assert.equal(assetCommand.params.nodeId,"1:3");
+  socket.send(JSON.stringify({type:"response",requestId:assetCommand.requestId,ok:true,
+    result:{nodeId:"1:3",name:"Icon",format:"SVG",source:"rendered-layer",base64:Buffer.from('<svg/>').toString('base64')}}));
+  const asset = (await assetCall).structuredContent;
+  assert.equal(await fs.readFile(asset.path,"utf8"),'<svg/>');
+  assert.equal(asset.base64,undefined,'Asset bytes must not flood model context');
+  await fs.unlink(asset.path);
+  await fs.rmdir(outputDirectory);
+
   const createCall = callProxy("tools/call", {
     name: "figma_create_design",
     arguments: { design: { type: "FRAME", name: "Created Frame", width: 240, height: 120 } }
@@ -197,7 +218,7 @@ try {
   assert.equal(created.structuredContent.created.name, "Created Frame");
   socket.close();
 
-  process.stdout.write("Smoke test passed: two MCP chats shared one bridge, selection read, and approved write round trip.\n");
+  process.stdout.write("Smoke test passed: shared bridge, selection/context reads, asset file export and approved write round trip.\n");
 } finally {
   if (proxyChild) proxyChild.kill("SIGTERM");
   child.kill("SIGTERM");

@@ -2,6 +2,8 @@ figma.showUI(__html__, { width: 380, height: 600, themeColors: true });
 
 const BRIDGE_DATA_KEY = "figmaLocalBridgeId";
 let selectionTimer = null;
+let documentRevision = 0;
+const contextPages = new Map();
 
 function finiteNumber(value, fallback) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -58,7 +60,11 @@ function serializeNode(node, depth, state) {
     "counterAxisAlignItems", "primaryAxisSizingMode", "counterAxisSizingMode", "layoutWrap",
     "textAutoResize", "textAlignHorizontal", "textAlignVertical", "fontName", "fontSize",
     "fontWeight", "lineHeight", "letterSpacing", "paragraphSpacing", "textCase",
-    "textDecoration", "characters", "componentProperties", "boundVariables"
+    "textDecoration", "characters", "componentProperties", "boundVariables",
+    "relativeTransform", "absoluteTransform", "absoluteRenderBounds", "layoutSizingHorizontal",
+    "layoutSizingVertical", "isMask", "maskType", "strokeTopWeight", "strokeBottomWeight",
+    "strokeLeftWeight", "strokeRightWeight", "textStyleId", "fillStyleId", "strokeStyleId",
+    "effectStyleId", "exportSettings"
   ];
 
   for (const key of commonProperties) {
@@ -70,15 +76,29 @@ function serializeNode(node, depth, state) {
     result.absoluteBoundingBox = plainValue(node.absoluteBoundingBox);
   }
 
+  if (state.includeTextRuns && node.type === "TEXT") {
+    try {
+      result.textRuns = plainValue(node.getStyledTextSegments([
+        "fontName", "fontSize", "fontWeight", "fills", "lineHeight", "letterSpacing",
+        "textDecoration", "textCase", "textStyleId", "hyperlink"
+      ]));
+    } catch (error) { result.textRunsError = String(error); }
+  }
+
   if (depth < state.maxDepth && "children" in node) {
     result.children = [];
     for (const child of node.children) {
       const serialized = serializeNode(child, depth + 1, state);
       if (serialized) result.children.push(serialized);
-      if (state.count >= state.maxNodes) break;
+      if (state.count >= state.maxNodes) {
+        if (result.children.length < node.children.length) state.truncated = true;
+        break;
+      }
     }
+    if (result.children.length < node.children.length) result.childCount = node.children.length;
   } else if ("children" in node && node.children.length > 0) {
     result.childCount = node.children.length;
+    state.truncated = true;
   }
 
   return result;
@@ -95,7 +115,10 @@ function serializeSelection(options) {
   for (const node of figma.currentPage.selection) {
     const serialized = serializeNode(node, 0, state);
     if (serialized) nodes.push(serialized);
-    if (state.count >= state.maxNodes) break;
+    if (state.count >= state.maxNodes) {
+      if (nodes.length < figma.currentPage.selection.length) state.truncated = true;
+      break;
+    }
   }
   return {
     editorType: figma.editorType,
@@ -105,6 +128,100 @@ function serializeSelection(options) {
     truncated: state.truncated,
     nodes
   };
+}
+
+function selectionSignature() {
+  return JSON.stringify([figma.currentPage.id, figma.currentPage.selection.map(n => n.id)]);
+}
+
+async function scopedNode(id) {
+  if (typeof id !== "string") throw new Error("A nodeId is required.");
+  const node = await figma.getNodeByIdAsync(id);
+  const roots = new Set(figma.currentPage.selection.map(n => n.id));
+  for (let ancestor = node; ancestor; ancestor = ancestor.parent) {
+    if (roots.has(ancestor.id)) return node;
+  }
+  throw new Error(`Node ${id} is not inside the current selection.`);
+}
+
+// Flat, resumable preorder traversal. No depth limit; parentId preserves hierarchy.
+async function getDesignContext(options = {}) {
+  const now = Date.now();
+  for (const [key, value] of contextPages) if (now - value.at > 300000) contextPages.delete(key);
+  let session;
+  if (options.cursor) {
+    session = contextPages.get(options.cursor);
+    if (!session) throw new Error("Context cursor expired or was already consumed. Restart the read.");
+    if (session.signature !== selectionSignature() || session.revision !== documentRevision) {
+      contextPages.delete(options.cursor);
+      throw new Error("Selection or document changed. Restart the context read for a consistent result.");
+    }
+  } else {
+    if (!figma.currentPage.selection.length) throw new Error("Select a frame or layers first.");
+    const roots = options.nodeId ? [await scopedNode(options.nodeId)] : figma.currentPage.selection;
+    session = { signature: selectionSignature(), revision: documentRevision, at: now,
+      roots: roots.map(n => n.id), stack: roots.slice().reverse().map(n => ({node:n,depth:0})),
+      seen: new Set(), count:0 };
+    if (contextPages.size >= 16) contextPages.delete(contextPages.keys().next().value);
+  }
+  const pageSize = clamp(Math.round(finiteNumber(options.pageSize, 75)), 1, 150);
+  const nodes = [];
+  const assets = [];
+  while (session.stack.length && nodes.length < pageSize) {
+    const {node, depth} = session.stack.pop();
+    if (session.seen.has(node.id)) continue;
+    session.seen.add(node.id);
+    const item = serializeNode(node, 0, {count:0,maxNodes:1,maxDepth:0,includeTextRuns:true,truncated:false});
+    item.parentId = node.parent?.id || null;
+    item.depth = depth;
+    item.childCount = "children" in node ? node.children.length : 0;
+    item.siblingIndex = node.parent && "children" in node.parent ? node.parent.children.indexOf(node) : 0;
+    nodes.push(item);
+    for (const property of ["fills", "strokes"]) {
+      const paints = item[property];
+      if (Array.isArray(paints)) paints.forEach((paint, index) => {
+        if (paint.type === "IMAGE" && paint.imageHash) assets.push({nodeId:node.id,name:node.name,
+          kind:"image",property,index,imageHash:paint.imageHash,visible:paint.visible !== false,
+          scaleMode:paint.scaleMode,imageTransform:paint.imageTransform});
+      });
+    }
+    if (["VECTOR", "BOOLEAN_OPERATION", "STAR", "POLYGON", "LINE", "ELLIPSE"].includes(node.type)) {
+      assets.push({nodeId:node.id,name:node.name,kind:"vector",suggestedFormat:"SVG"});
+    }
+    if ("children" in node) for (let i=node.children.length-1;i>=0;i--) session.stack.push({node:node.children[i],depth:depth+1});
+  }
+  session.count += nodes.length;
+  session.at = now;
+  if (options.cursor) contextPages.delete(options.cursor);
+  const nextCursor = session.stack.length ? `${now}-${Math.random().toString(36).slice(2)}` : null;
+  if (nextCursor) contextPages.set(nextCursor, session);
+  return {page:{id:figma.currentPage.id,name:figma.currentPage.name},rootNodeIds:session.roots,
+    revision:session.revision,nodes,assets,readNodeCount:session.count,complete:!nextCursor,nextCursor,
+    guidance:"Read every page until complete=true. Build UI from layer geometry, layout and textRuns. Export required asset nodes separately; previews are visual references only."};
+}
+
+async function exportAsset(options = {}) {
+  const node = await scopedNode(options.nodeId);
+  let bytes;
+  let format = String(options.format || "PNG").toUpperCase();
+  let source;
+  if (options.imageHash) {
+    const paints = [readProperty(node,"fills"),readProperty(node,"strokes")].flat().filter(Boolean);
+    if (!paints.some(p => p.type === "IMAGE" && p.imageHash === options.imageHash)) throw new Error("Image hash is not used by this layer.");
+    const image = figma.getImageByHash(options.imageHash);
+    if (!image) throw new Error("Image is not available in Figma.");
+    bytes = await image.getBytesAsync();
+    format = bytes[0] === 137 && bytes[1] === 80 ? "PNG" : bytes[0] === 255 && bytes[1] === 216 ? "JPG" : bytes[0] === 71 && bytes[1] === 73 ? "GIF" : "BIN";
+    source = "original-image";
+  } else {
+    if (!["PNG","SVG"].includes(format)) throw new Error("Use PNG or SVG.");
+    const maxWidth = clamp(finiteNumber(options.maxWidth, 2000), 32, 4096);
+    bytes = await node.exportAsync(format === "SVG" ? {format:"SVG"} : {format:"PNG",constraint:{type:"SCALE",value:Math.min(1,maxWidth/Math.max(1,node.width))}});
+    source = "rendered-layer";
+  }
+  if (bytes.length > 8 * 1024 * 1024) throw new Error("Asset exceeds 8 MB. Export the rendered layer as a smaller PNG instead.");
+  return {nodeId:node.id,name:node.name,format,source,imageHash:options.imageHash || null,
+    byteLength:bytes.length,base64:bytesToBase64(bytes)};
 }
 
 function bytesToBase64(bytes) {
@@ -407,6 +524,8 @@ async function patchSelection(params) {
 
 async function handleBridgeCommand(message) {
   switch (message.command) {
+    case "get-design-context": return getDesignContext(message.params);
+    case "export-asset": return exportAsset(message.params);
     case "get-selection": return serializeSelection(message.params);
     case "get-selection-preview": return exportNodes(message.params, true);
     case "export-selection": return exportNodes(message.params, false);
@@ -439,6 +558,7 @@ function scheduleSelectionUpdate() {
 }
 
 figma.on("selectionchange", scheduleSelectionUpdate);
+figma.on("documentchange", () => { documentRevision += 1; });
 
 figma.ui.onmessage = async (message) => {
   if (!message || typeof message.type !== "string") return;

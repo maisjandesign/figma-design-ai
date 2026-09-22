@@ -36,6 +36,16 @@ The companion lives in [`codex-connector/`](codex-connector/). Install it throug
 
 ## Use
 
+### Layer-first implementation (0.4)
+
+For whole-frame analysis and implementation, the connector reads `figma_get_design_context` pages until `complete: true`. This has no tree-depth limit. Nodes include parent IDs, sibling order, geometry, transforms, Auto Layout and mixed-style text runs. Image fills/strokes and vector layers are listed as asset references. A changed document or selection invalidates the cursor; restart the read instead of combining inconsistent pages.
+
+Use `figma_export_asset` with a descendant node ID and an absolute output directory to save PNG/SVG files without changing the selection. Pass an image hash from context to retrieve original image bytes. Render the layer as PNG when the visible crop is needed. Each export creates a unique file and returns a node-to-file mapping. Assets are capped at 8 MB per request; use a smaller rendered PNG for larger originals. Raw images may need to be downloaded by Figma if they are not cached.
+
+Screenshots are visual references, never substitutes for the layer tree. Compact selection snapshots remain bounded and now explicitly report truncation.
+
+After upgrading both parts, restart the Figma development plugin and Codex, then start a new task. Existing running bridges do not hot-reload server code.
+
 1. Open the target Figma file.
 2. Run **FIGMA DESIGN AI** and wait for **Connected**.
 3. Start a Codex chat and ask for an outcome:

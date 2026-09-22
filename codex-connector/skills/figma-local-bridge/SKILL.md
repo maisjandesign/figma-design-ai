@@ -15,11 +15,14 @@ Use the `figma-local-bridge` MCP tools for all interaction with the open Figma d
 
 ## Reading Figma
 
-1. Call `figma_get_selection` for the structured node tree.
-2. For visual analysis or implementation, also call `figma_get_selection_preview`.
-3. Handle zero, one, and multiple selected nodes explicitly.
-4. Treat `truncated: true` as an instruction to request a smaller scope or lower tree depth.
-5. Never infer hidden document content that was not returned by the bridge.
+1. Before implementing or analyzing a whole frame, call `figma_get_design_context`. It returns flat layer records with parentId, siblingIndex, geometry, Auto Layout, fills, mixed-style textRuns, and asset references.
+2. Repeat `figma_get_design_context` with each `nextCursor` until `complete: true`. Collect nodes by ID and rebuild hierarchy using parentId / siblingIndex. Never treat a partial page, compact selection or preview as the complete design. If the document/selection changes or a cursor expires, restart the read. Report readNodeCount and completeness briefly before implementation.
+3. Call `figma_get_selection_preview` as a visual reference, not as a replacement for layer data. Handle zero, one and multiple selected roots explicitly.
+4. Use returned dimensions, parent-relative coordinates, transforms, layoutSizing, padding, spacing, alignment, constraints and textRuns to implement actual layout and text. Do not guess spacing, fonts or hidden content from the screenshot when layer values are available. Surface textRunsError or other missing information instead of claiming full fidelity.
+5. Inspect asset references on every page. Use `figma_export_asset` with a nodeId and an absolute outputDirectory inside the target project to save needed photos and icons. Use imageHash for original image bytes; preserve the layer's scaleMode, imageTransform and crop. Use PNG for the visible rendered crop, SVG for an icon/vector or its containing group. Export a whole icon group when individual paths belong together. Keep a nodeId/imageHash-to-file-path mapping and reuse duplicates. Do not substitute invented images, emoji or whole-frame screenshots for source assets.
+6. Build containers as layout and text as text. Rasterize a UI container only when the user explicitly requests a flat image. Compare the implementation against the preview after building it.
+7. `figma_get_selection` and `figma_get_cached_selection` are compact navigation snapshots only. If truncated, use paginated design context; lowering depth loses information and is not a solution for implementation.
+8. If the new tools are missing or return an unknown-command error, ask the user to restart the updated Figma plugin and Codex, then start a new task. Do not silently fall back to screenshot-only implementation.
 
 ## Writing Figma
 

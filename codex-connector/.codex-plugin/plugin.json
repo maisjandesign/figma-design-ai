@@ -1,6 +1,6 @@
 {
   "name": "figma-local-bridge",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Background local Codex companion for the independent FIGMA-DESIGN-AI Figma plugin.",
   "author": {
     "name": "Maishalo"
