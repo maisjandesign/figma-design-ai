@@ -1,4 +1,10 @@
-figma.showUI(__html__, { width: 380, height: 600, themeColors: true });
+figma.showUI(__html__, { width: 320, height: 48, themeColors: true });
+let preferences = {autoApply:false,hasChoice:false};
+const preferencesReady = (async()=>{
+  try { const saved=await figma.clientStorage.getAsync('figlink-preferences-v1');
+    if(saved&&typeof saved.autoApply==='boolean')preferences={autoApply:saved.autoApply,hasChoice:true};
+  } catch { /* Start in manual mode if storage is unavailable. */ }
+})();
 
 const BRIDGE_DATA_KEY = "figmaLocalBridgeId";
 let selectionTimer = null;
@@ -537,6 +543,9 @@ async function handleBridgeCommand(message) {
 
 async function respondToBridge(message) {
   try {
+    await preferencesReady;
+    const isWrite=message.command==='create-design'||message.command==='patch-selection';
+    if(isWrite&&!preferences.autoApply&&message.userApproved!==true)throw new Error('Approve this change in FigLink or enable Auto-apply changes.');
     const result = await handleBridgeCommand(message);
     figma.ui.postMessage({ type: "bridge-response", requestId: message.requestId, ok: true, result });
     scheduleSelectionUpdate();
@@ -574,6 +583,15 @@ figma.on("stylechange", invalidateContext);
 
 figma.ui.onmessage = async (message) => {
   if (!message || typeof message.type !== "string") return;
+  if(message.type==='resize-panel'){figma.ui.resize(320,clamp(finiteNumber(message.height,48),48,580));return;}
+  if(message.type==='save-preferences'){
+    await preferencesReady;
+    if(typeof message.autoApply!=='boolean')return;
+    try{await figma.clientStorage.setAsync('figlink-preferences-v1',{autoApply:message.autoApply});
+      preferences={autoApply:message.autoApply,hasChoice:true};figma.ui.postMessage({type:'preferences',...preferences});
+    }catch{figma.ui.postMessage({type:'preferences-error',error:'Could not save this choice. Try again.'});}
+    return;
+  }
   if (message.type === "request-selection") {
     figma.ui.postMessage({ type: "selection-snapshot", payload: serializeSelection({ maxDepth: 4, maxNodes: 150 }) });
     return;
@@ -584,6 +602,8 @@ figma.ui.onmessage = async (message) => {
 };
 
 (async () => {
+  await preferencesReady;
+  figma.ui.postMessage({type:'preferences',...preferences});
   figma.ui.postMessage({
     type: "plugin-ready",
     figmaVersion: figma.apiVersion

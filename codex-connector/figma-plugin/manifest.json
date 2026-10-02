@@ -1,5 +1,5 @@
 {
-  "name": "FIGMA-DESIGN-AI",
+  "name": "FigLink",
   "id": "1560000000000000000",
   "api": "1.0.0",
   "main": "code.js",
@@ -8,6 +8,6 @@
   "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": ["ws://localhost:38451"],
-    "reasoning": "FIGMA-DESIGN-AI connects only to the user's local Codex companion on the loopback interface. No document data is sent to external domains by the plugin."
+    "reasoning": "FigLink connects only to the user's local Codex companion on the loopback interface. No document data is sent to external domains by the plugin."
   }
 }

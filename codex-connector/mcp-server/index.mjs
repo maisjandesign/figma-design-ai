@@ -9,7 +9,7 @@ const HOST = "127.0.0.1";
 const PORT = Number.parseInt(process.env.FIGMA_LOCAL_BRIDGE_PORT || "38451", 10);
 const MAX_WS_PAYLOAD = 16 * 1024 * 1024;
 const MAX_LOCAL_RPC_PAYLOAD = 4 * 1024 * 1024;
-const SERVER_VERSION = "0.4.0";
+const SERVER_VERSION = "0.5.0";
 const FIGMA_DESIGN_AI_CLIENT_KEY = "figma-design-ai-local-v1";
 const LOCAL_RPC_KEY = "figma-design-ai-shared-bridge-v1";
 
@@ -222,7 +222,7 @@ function handleFigmaMessage(client, rawMessage) {
       client.paired = false;
       sendWebSocket(client, {
         type: "pair-required",
-        message: "This local endpoint accepts only FIGMA-DESIGN-AI."
+        message: "This local endpoint accepts only FigLink."
       });
       return;
     }
@@ -231,7 +231,7 @@ function handleFigmaMessage(client, rawMessage) {
       closeWebSocket(activeFigmaClient, 4001, "Another Figma plugin connected");
     }
     client.paired = true;
-    client.clientName = message.clientName || (isFigmaDesignAi ? "FIGMA-DESIGN-AI" : "Figma plugin");
+    client.clientName = message.clientName || (isFigmaDesignAi ? "FigLink" : "Figma plugin");
     client.figmaVersion = message.figmaVersion || null;
     activeFigmaClient = client;
     sendWebSocket(client, {
@@ -381,7 +381,7 @@ httpServer.listen(PORT, HOST, () => {
 
 function requestFigma(command, params = {}) {
   if (!activeFigmaClient?.paired) {
-    throw new Error("FIGMA-DESIGN-AI is not connected. Run the plugin inside Figma and keep its panel open.");
+    throw new Error("FigLink is not connected. Run the plugin inside Figma and keep its panel open.");
   }
 
   const requestId = `req-${Date.now()}-${requestCounter += 1}`;
@@ -428,7 +428,7 @@ const tools = [
   },
   {
     name: "figma_connection_status",
-    description: "Check whether FIGMA-DESIGN-AI is connected to the local Codex companion.",
+    description: "Check whether FigLink is connected to the local Codex companion.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false }
   },
   {
@@ -458,7 +458,7 @@ const tools = [
   },
   {
     name: "figma_create_design",
-    description: "Create a DesignIR tree in Figma. The user must approve the write in the Figma plugin.",
+    description: "Create a DesignIR tree in FigLink. Runs immediately with saved Auto-apply consent; otherwise waits for approval in Figma.",
     inputSchema: {
       type: "object",
       required: ["design"],
@@ -472,7 +472,7 @@ const tools = [
   },
   {
     name: "figma_patch_selection",
-    description: "Apply safe property operations to selected nodes or their descendants. The user must approve the write in Figma.",
+    description: "Apply property operations to selected nodes or descendants. Runs with saved Auto-apply consent or individual approval in FigLink.",
     inputSchema: {
       type: "object",
       required: ["operations"],
@@ -643,11 +643,11 @@ async function callTool(name, args = {}) {
     try {
       return await proxyToolCall(name, args);
     } catch (error) {
-      return errorResult(new Error(`Shared FIGMA-DESIGN-AI bridge is unavailable: ${error.message}`));
+      return errorResult(new Error(`Shared FigLink bridge is unavailable: ${error.message}`));
     }
   }
   return errorResult(new Error(
-    `FIGMA-DESIGN-AI could not start its local bridge on ${HOST}:${PORT}. Restart Codex and run the Figma plugin again.`
+    `FigLink could not start its local bridge on ${HOST}:${PORT}. Restart Codex and run the Figma plugin again.`
   ));
 }
 

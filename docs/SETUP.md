@@ -12,7 +12,7 @@
 1. Open a Figma Design file in the desktop app.
 2. Choose **Plugins → Development → Import plugin from manifest…**.
 3. Select the repository's `manifest.json`.
-4. Run **Plugins → Development → FIGMA DESIGN AI**.
+4. Run **Plugins → Development → FigLink**.
 
 The panel should move from **Connecting** to **Connected** after the Codex companion starts.
 
@@ -22,19 +22,19 @@ The `codex-connector` directory contains the reusable skill, MCP server, shared 
 
 ## First test
 
-1. Keep FIGMA DESIGN AI open in Figma.
+1. Keep FigLink open in Figma.
 2. Select a frame.
 3. Start a new Codex chat.
 4. Send:
 
 ```text
-Use FIGMA DESIGN AI. Check the connection and read the current selection.
+Use FigLink. Check the connection and read the current selection.
 ```
 
 5. Test a write:
 
 ```text
-Use FIGMA DESIGN AI. Create a 200 by 200 green square in the viewport center.
+Use FigLink. Create a 200 by 200 green square in the viewport center.
 ```
 
 6. Select **Apply changes** in Figma.

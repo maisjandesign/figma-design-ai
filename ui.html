@@ -144,17 +144,42 @@
       button:active:not(:disabled) { transform: none; }
     }
   </style>
+  <style>
+    body{min-width:320px;padding:0;font-size:12px} [hidden]{display:none!important}
+    .topbar{height:48px;margin:0;padding:8px 10px;gap:8px}.brand{display:none}
+    .status-pill{padding:0;background:transparent!important;color:var(--figma-color-text,#242424)!important;font-weight:500;gap:8px;font-size:11px}.status-dot{box-shadow:none!important;width:6px;height:6px}
+    .compact-count{flex:1;color:var(--figma-color-text-secondary,#777);font-size:11px;border-left:1px solid var(--figma-color-border,#ddd);padding-left:9px;white-space:nowrap}
+    .icon-button{width:32px;height:32px;min-height:32px;padding:0;border-radius:6px}.icon-button svg{width:16px;height:16px}
+    #expandButton[aria-expanded=true] svg{rotate:180deg}
+    .stack{gap:0;border-top:1px solid var(--figma-color-border,#e6e6e6)}
+    .card{border:0;border-radius:0;background:transparent;box-shadow:none;padding:12px 14px}
+    .connection-card{display:block;padding:8px 14px;font-size:11px;background:var(--figma-color-bg-secondary,#fafafa)}
+    .connection-card .connection-icon,.connection-card h2,.connection-card .button-row{display:none}
+    .connection-copy p{margin:0}.selection-main{margin-top:7px}.selection-meta{font-size:11px;margin-top:3px}
+    .count-badge{display:none}.footer{display:block;padding:0 14px}.toggle{display:flex;justify-content:space-between;flex-direction:row-reverse;min-height:36px;border-top:1px solid var(--figma-color-border,#eee)}
+    .toggle input{appearance:none;width:28px;height:16px;border-radius:10px;background:#aaa;position:relative;cursor:pointer;flex-shrink:0}.toggle input:checked{background:#299447}.toggle input:before{content:'';position:absolute;width:12px;height:12px;left:2px;top:2px;border-radius:50%;background:white}.toggle input:checked:before{left:14px}
+    .activity{padding:5px 14px 10px}.activity summary{min-height:32px;align-items:center}.local-note{display:none}
+    .utility{padding:4px 14px}.utility button{border:0;padding:0;min-height:28px;font-size:12px}
+    .approval{border-bottom:1px solid var(--figma-color-border,#eee)}.approval-title svg{display:none}.approval p{font-size:11px}.approval-actions{margin-top:10px}
+    .consent{padding:14px;border-bottom:1px solid var(--figma-color-border,#eee)}.consent p{font-size:11px;color:var(--figma-color-text-secondary,#777);margin-top:7px;line-height:1.5}
+    .consent .approval-actions{grid-template-columns:1fr 1.2fr}.consent button{padding:0 8px;font-size:11px;min-height:32px}
+    .log{max-height:90px}button.primary{background:#7550e8;border-color:#7550e8;color:#fff}
+  </style>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <div class="mark" aria-hidden="true"></div>
-      <div><h1>FIGMA DESIGN AI</h1><p class="subtitle">Local bridge for Codex</p></div>
+      <div><h1>FigLink</h1><p class="subtitle">Local bridge for Codex</p></div>
     </div>
     <div id="status" class="status-pill connecting" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span id="statusText">Connecting</span></div>
+    <span id="compactCount" class="compact-count">0 layers</span>
+    <button id="quickSync" class="icon-button" type="button" aria-label="Sync selection" title="Sync selection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5M4 16a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/></svg></button>
+    <button id="expandButton" class="icon-button" type="button" aria-label="Show details" aria-expanded="false" aria-controls="detailsPanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 9 6 6 6-6"/></svg></button>
   </header>
 
-  <main class="stack">
+  <main id="detailsPanel" class="stack" hidden>
+    <section id="consent" class="consent" hidden><h2>Allow automatic changes from Codex?</h2><p>Codex can create layers and edit your selection while FigLink is open. Remember this choice on this device. You can change it below.</p><div class="approval-actions"><button id="askEachTime">Ask each time</button><button id="allowRemember" class="primary">Allow &amp; remember</button></div></section>
     <section id="connectionCard" class="card connection-card" aria-labelledby="connectionTitle">
       <div class="connection-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5 14.5 9.5"/><path d="m7.4 17.6-1 1a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0"/><path d="m16.6 6.4 1-1a3.5 3.5 0 1 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"/></svg>
@@ -188,8 +213,9 @@
       <div id="selectionMeta" class="selection-meta">Select a frame or layer to share its structure with Codex.</div>
     </section>
 
-    <details class="activity"><summary>Activity</summary><div id="log" class="log" role="log" aria-live="polite">Plugin opened.</div></details>
-    <div class="footer"><label class="toggle"><input id="autoSync" type="checkbox" checked><span>Sync selection automatically</span></label><span class="local-note">Local only</span></div>
+    <div class="footer"><label class="toggle"><input id="autoSync" type="checkbox" checked><span>Auto-sync</span></label><label class="toggle"><input id="autoApply" type="checkbox" disabled><span>Auto-apply changes</span></label></div>
+    <div class="utility"><button id="reconnectAction">Reconnect</button></div>
+    <details class="activity"><summary>Activity</summary><div id="log" class="log" role="log" aria-live="polite">FigLink opened.</div></details>
   </main>
 
   <script>
@@ -220,6 +246,26 @@
     let reconnectAttempt = 0;
     let heartbeatTimer = null;
     let lastPongAt = 0;
+    let settingsReady = false;
+    let autoApplyEnabled = false;
+    let expanded = false;
+    let restoreExpanded = false;
+    let applyingId = null;
+    const detailsPanel = document.getElementById('detailsPanel');
+    const expandButton = document.getElementById('expandButton');
+    const autoApply = document.getElementById('autoApply');
+    const consent = document.getElementById('consent');
+    const quickSync = document.getElementById('quickSync');
+    function resizePanel(){parent.postMessage({pluginMessage:{type:'resize-panel',height:Math.min(580,48+(detailsPanel.hidden?0:detailsPanel.getBoundingClientRect().height))}},'*');}
+    function setExpanded(value){expanded=value;detailsPanel.hidden=!value;expandButton.setAttribute('aria-expanded',String(value));expandButton.setAttribute('aria-label',value?'Hide details':'Show details');requestAnimationFrame(resizePanel);}
+    new ResizeObserver(resizePanel).observe(document.body);
+    expandButton.onclick=()=>{if(!consent.hidden||pendingWrite)return;setExpanded(!expanded);};
+    function saveConsent(value){autoApply.disabled=true;document.getElementById('askEachTime').disabled=true;document.getElementById('allowRemember').disabled=true;parent.postMessage({pluginMessage:{type:'save-preferences',autoApply:value}},'*');}
+    document.getElementById('askEachTime').onclick=()=>saveConsent(false);
+    document.getElementById('allowRemember').onclick=()=>saveConsent(true);
+    autoApply.onchange=()=>saveConsent(autoApply.checked);
+    document.getElementById('reconnectAction').onclick=()=>connect(true);
+    quickSync.onclick=()=>paired?(latestSelection&&publishSelection(latestSelection)):connect(true);
 
     function log(message) {
       const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -232,6 +278,9 @@
       connectionTitle.textContent = title;
       connectionDescription.textContent = description;
       sendButton.disabled = !paired || !latestSelection || latestSelection.selectionCount === 0;
+      quickSync.disabled=paired&&(!latestSelection||latestSelection.selectionCount===0);
+      quickSync.title=paired?'Sync selection':'Retry connection';quickSync.setAttribute('aria-label',quickSync.title);
+      document.getElementById('connectionCard').hidden=paired;
     }
 
     function send(message) {
@@ -280,7 +329,7 @@
       socket = new WebSocket(endpoint);
 
       socket.onopen = () => {
-        send({ type: "hello", clientKey: "figma-design-ai-local-v1", clientName: "FIGMA-DESIGN-AI", figmaVersion, protocolVersion: "0.2" });
+        send({ type: "hello", clientKey: "figma-design-ai-local-v1", clientName: "FigLink", figmaVersion, protocolVersion: "0.2" });
       };
 
       socket.onmessage = (event) => {
@@ -303,7 +352,7 @@
         if (message.type === "pair-required") {
           paired = false;
           setConnectionState("error", "Update needed", "Update the Codex connector", "This Figma plugin and the local connector use different protocol versions.");
-          log("Connection rejected. Update the FIGMA-DESIGN-AI Connector in Codex.");
+          log("Connection rejected. Update the FigLink Connector in Codex.");
           return;
         }
         if (message.type === "command") receiveCommand(message);
@@ -311,6 +360,8 @@
 
       socket.onerror = () => { paired = false; };
       socket.onclose = (event) => {
+        if(pendingWrite){pendingWrite=null;approval.classList.remove('visible');setExpanded(restoreExpanded);log('Pending change cancelled: connection closed.');}
+        applyingId=null;
         clearHeartbeat();
         paired = false;
         socket = null;
@@ -319,7 +370,7 @@
           log("Another Figma file took over the local connection.");
           return;
         }
-        setConnectionState("error", "Offline", "Codex is not available yet", "Open a Codex chat with FIGMA-DESIGN-AI enabled, then select Retry.");
+        setConnectionState("error", "Offline", "Codex is not available yet", "Open a Codex chat with FigLink enabled, then select Retry.");
         if (manual) log("Codex was not found. Start a Codex chat and try again.");
         scheduleReconnect();
       };
@@ -329,6 +380,8 @@
       latestSelection = snapshot;
       const count = snapshot?.selectionCount || 0;
       selectionCount.textContent = String(count);
+      document.getElementById('compactCount').textContent=`${count} ${count===1?'layer':'layers'}`;
+      quickSync.disabled=paired&&count===0;
       selectionCount.setAttribute("aria-label", `${count} selected ${count === 1 ? "layer" : "layers"}`);
       if (count === 0) {
         selectionElement.textContent = "Nothing selected";
@@ -366,11 +419,13 @@
         parent.postMessage({ pluginMessage: { ...message, type: "bridge-command" } }, "*");
         return;
       }
-      if (pendingWrite) {
+      if (pendingWrite || applyingId || !settingsReady) {
         send({ type: "response", requestId: message.requestId, ok: false, error: "Another Figma change is waiting for approval." });
         return;
       }
+      if(autoApplyEnabled){applyingId=message.requestId;statusText.textContent='Applying…';parent.postMessage({pluginMessage:{...message,type:'bridge-command'}},'*');return;}
       pendingWrite = message;
+      restoreExpanded=expanded;setExpanded(true);
       approvalSummary.textContent = commandSummary(message);
       approvalPayload.textContent = JSON.stringify(message.params, null, 2).slice(0, 5000);
       approval.classList.add("visible");
@@ -383,19 +438,29 @@
       const message = pendingWrite;
       pendingWrite = null;
       approval.classList.remove("visible");
+      setExpanded(restoreExpanded);
       if (approved) {
-        parent.postMessage({ pluginMessage: { ...message, type: "bridge-command" } }, "*");
+        applyingId=message.requestId;statusText.textContent='Applying…';
+        parent.postMessage({ pluginMessage: { ...message, type: "bridge-command", userApproved:true } }, "*");
         log("Change approved. Applying it in Figma.");
       } else {
         send({ type: "response", requestId: message.requestId, ok: false, error: "The change was rejected in Figma." });
         log("Change rejected.");
       }
-      sendButton.focus();
+      expandButton.focus();
     }
 
     window.onmessage = (event) => {
       const message = event.data.pluginMessage;
       if (!message) return;
+      if(message.type==='preferences'){
+        settingsReady=true;autoApplyEnabled=message.autoApply===true;autoApply.checked=autoApplyEnabled;autoApply.disabled=false;
+        document.getElementById('askEachTime').disabled=false;document.getElementById('allowRemember').disabled=false;
+        const wasConsent=!consent.hidden;consent.hidden=message.hasChoice;
+        if(!message.hasChoice)setExpanded(true);else if(wasConsent)setExpanded(false);
+        return;
+      }
+      if(message.type==='preferences-error'){autoApply.checked=autoApplyEnabled;autoApply.disabled=false;document.getElementById('askEachTime').disabled=false;document.getElementById('allowRemember').disabled=false;log(message.error);setExpanded(true);return;}
       if (message.type === "plugin-ready") {
         figmaVersion = message.figmaVersion || figmaVersion;
         connect(false);
@@ -407,6 +472,7 @@
         return;
       }
       if (message.type === "bridge-response") {
+        if(message.requestId===applyingId){applyingId=null;statusText.textContent=paired?'Connected':'Offline';if(!message.ok){setExpanded(true);document.querySelector('.activity').open=true;}}
         send({ type: "response", requestId: message.requestId, ok: message.ok, result: message.result, error: message.error });
         log(message.ok ? "Command completed." : `Unable to complete command: ${message.error}`);
       }

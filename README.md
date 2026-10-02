@@ -1,8 +1,18 @@
-# FIGMA DESIGN AI
+# FigLink
 
 An independent, local-first bridge between the Figma desktop app and Codex. Read the active Figma selection, preview or export it, create editable designs, and apply targeted changes without sending document data to a third-party bridge service.
 
-![FIGMA DESIGN AI plugin interface](docs/images/plugin-ui.svg)
+<img src="assets/figlink-monogram.png" alt="FigLink monogram" width="128" />
+
+![Compact FigLink panel](docs/images/figlink-compact.png)
+
+## Compact panel and remembered consent (0.5)
+
+FigLink opens as a 320 × 48 px status bar (excluding Figma's native title bar). Expand it for selection details, Auto-sync, Auto-apply, Reconnect and Activity. On first use, choose **Ask each time** or **Allow & remember**. This preference is stored on this device for this plugin, across files and restarts. Auto-apply executes create/edit commands while the panel is open. Disable it in settings to restore individual approval. Reads do not require approval; editing remains scoped to the selection and its descendants. Writes retain Figma undo boundaries.
+
+The refined letterform icon is included in `assets/figlink-monogram.png`; the earlier linked-frame concept is retained as `assets/figlink-icon.png`. Figma's manifest has no icon field; choose the icon when publishing through Figma. Imported development plugins may retain the generic code icon. No Figma Community publication is included in this release.
+
+The repository URL and internal `figma-local-bridge` connector ID stay unchanged for compatibility. Import the root `manifest.json` again to refresh the display name to FigLink.
 
 ## What it does
 
@@ -12,7 +22,7 @@ An independent, local-first bridge between the Figma desktop app and Codex. Read
 - Returns PNG previews and PNG/SVG exports.
 - Creates frames, components, text, rectangles, ellipses, and lines.
 - Applies safe property changes only within the active selection.
-- Asks for approval in Figma before every document write.
+- Supports individual write approval or remembered Auto-apply consent.
 - Keeps local transport and Figma scene operations available without internet.
 
 ## How it works
@@ -28,7 +38,7 @@ The Figma plugin connects to a loopback-only WebSocket. The Codex companion expo
 1. Open the Figma desktop app and a Figma Design file.
 2. Choose **Plugins → Development → Import plugin from manifest…**.
 3. Select [`manifest.json`](manifest.json) from this repository.
-4. Run **Plugins → Development → FIGMA DESIGN AI**.
+4. Run **Plugins → Development → FigLink**.
 
 ### Codex companion
 
@@ -47,22 +57,22 @@ Screenshots are visual references, never substitutes for the layer tree. Compact
 After upgrading both parts, restart the Figma development plugin and Codex, then start a new task. Existing running bridges do not hot-reload server code.
 
 1. Open the target Figma file.
-2. Run **FIGMA DESIGN AI** and wait for **Connected**.
+2. Run **FigLink** and wait for **Connected**.
 3. Start a Codex chat and ask for an outcome:
 
 ```text
-Use FIGMA DESIGN AI. Inspect the selected frame and show me a preview.
+Use FigLink. Inspect the selected frame and show me a preview.
 ```
 
 ```text
-Use FIGMA DESIGN AI. Create a profile card beside the current selection.
+Use FigLink. Create a profile card beside the current selection.
 ```
 
 ```text
-Use FIGMA DESIGN AI. Change the selected button to green with a 12 px corner radius.
+Use FigLink. Change the selected button to green with a 12 px corner radius.
 ```
 
-For reads, select one or more layers in Figma first. For creates, no selection is required. Every write appears in the plugin as a review step with **Reject** and **Apply changes** actions.
+For reads, select one or more layers in Figma first. For creates, no selection is required. With Auto-apply off, writes show **Reject** and **Apply changes**. With it on, they run immediately.
 
 ## Connection states
 
@@ -93,8 +103,8 @@ No port number or pairing code is required.
 
 - The bridge binds only to `127.0.0.1`.
 - The Figma manifest allows only the local WebSocket endpoint.
-- The connector accepts only loopback clients with the FIGMA DESIGN AI client key.
-- Every create or patch operation requires explicit approval inside Figma.
+- The connector accepts only loopback clients with the FigLink client key.
+- Writes require individual approval or the user's saved Auto-apply consent.
 - Patch operations are restricted to selected nodes and their descendants.
 - Codex model requests still follow the network and privacy settings of the Codex app.
 

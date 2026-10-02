@@ -1,9 +1,9 @@
 ---
 name: figma-design-ai
-description: Read the active Figma selection and create or patch Figma nodes through the independent FIGMA-DESIGN-AI plugin. Use when the user mentions FIGMA-DESIGN-AI, selected Figma layers, sending a design to Figma, or reading design back from Figma.
+description: FigLink (formerly FIGMA-DESIGN-AI). Read the active Figma selection and create or patch Figma nodes through the independent FIGMA-DESIGN-AI plugin. Use when the user mentions FIGMA-DESIGN-AI, selected Figma layers, sending a design to Figma, or reading design back from Figma.
 ---
 
-# FIGMA-DESIGN-AI
+# FigLink
 
 Use the `figma-local-bridge` MCP tools for all interaction with the open Figma development plugin.
 
@@ -28,7 +28,7 @@ Use the `figma-local-bridge` MCP tools for all interaction with the open Figma d
 
 - Use `figma_create_design` for new node trees.
 - Use `figma_patch_selection` for targeted changes to the current selection or descendants.
-- The Figma UI asks the user to approve every write. Tell the user briefly what approval to expect before calling a write tool.
+- FigLink supports manual approval and a remembered Auto-apply choice. With Auto-apply enabled, writes run immediately; otherwise the plugin expands for approval. Do not promise an approval dialog for every write. Never change this preference on the user's behalf unless they explicitly request it.
 - Do not target nodes outside the active selection when patching.
 - Prefer creating a new frame beside the selection for exploratory alternatives.
 - Prefer small patch batches with clear intent over a large destructive rewrite.

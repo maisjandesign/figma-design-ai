@@ -3,6 +3,8 @@ import vm from 'node:vm';
 import fs from 'node:fs/promises';
 
 const handlers = {};
+const messages=[];
+let savedPreferences;
 const registry = new Map();
 const make = (id, type='FRAME', parent=null) => {
   const n={id,name:id,type,parent,children:[],width:200,height:100,x:10,y:20,layoutMode:'HORIZONTAL',itemSpacing:16,
@@ -26,7 +28,8 @@ const testPage = (id,selection) => ({id,name:id,selection,
   on:(name,cb)=>{assert.equal(name,'nodechange');pageHandlers.set(id,cb);},
   off:(name,cb)=>{assert.equal(name,'nodechange');assert.equal(pageHandlers.get(id),cb);pageHandlers.delete(id);}});
 const figma={mixed:Symbol('mixed'),showUI(){},currentPage:testPage('page',[root]),
-  ui:{postMessage(){}},on:(name,cb)=>{if(name==='documentchange') throw new Error('Cannot register documentchange in incremental mode');handlers[name]=cb;},getNodeByIdAsync:async id=>registry.get(id),
+  clientStorage:{getAsync:async()=>savedPreferences,setAsync:async(key,value)=>{savedPreferences=value;}},
+  ui:{postMessage(message){messages.push(message);}},on:(name,cb)=>{if(name==='documentchange') throw new Error('Cannot register documentchange in incremental mode');handlers[name]=cb;},getNodeByIdAsync:async id=>registry.get(id),
   getImageByHash:()=>({getBytesAsync:async()=>new Uint8Array([137,80,78,71])})};
 const context=vm.createContext({figma,__html__:'',setTimeout:()=>1,clearTimeout(){},Uint8Array,console});
 vm.runInContext(await fs.readFile(new URL('../figma-plugin/code.js',import.meta.url),'utf8'),context);
@@ -75,4 +78,17 @@ const beforeStyle=await result('getDesignContext({pageSize:1})');
 handlers.stylechange();context.opts={cursor:beforeStyle.nextCursor};
 await assert.rejects(result('getDesignContext(opts)'),/changed/);
 assert.equal(handlers.documentchange,undefined,'No global documentchange subscription');
+await result('preferencesReady');
+result('handleBridgeCommand = async () => ({executed:true})');
+await result('respondToBridge({requestId:"blocked",command:"create-design"})');
+assert.equal(messages.find(m=>m.requestId==='blocked').ok,false);
+await result('respondToBridge({requestId:"approved",command:"create-design",userApproved:true})');
+assert.equal(messages.find(m=>m.requestId==='approved').ok,true);
+await figma.ui.onmessage({type:'save-preferences',autoApply:true});
+assert.equal(savedPreferences.autoApply,true);
+await result('respondToBridge({requestId:"automatic",command:"create-design"})');
+assert.equal(messages.find(m=>m.requestId==='automatic').ok,true);
+await figma.ui.onmessage({type:'save-preferences',autoApply:false});
+await result('respondToBridge({requestId:"revoked",command:"create-design"})');
+assert.equal(messages.find(m=>m.requestId==='revoked').ok,false);
 console.log('Context tests passed: 1,604 nodes / 1,600 levels, pagination, mixed text, assets, invalidation and selection scope.');
